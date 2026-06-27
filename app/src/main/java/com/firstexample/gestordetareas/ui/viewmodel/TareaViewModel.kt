@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.firstexample.gestordetareas.domain.model.RegistroCumplimiento
 
 /**
  * El ViewModel es el "puente" entre la interfaz gráfica y la base de datos.
@@ -30,6 +31,9 @@ class TareaViewModel(
     private val _perfil = MutableStateFlow<Perfil?>(null)
     val perfil: StateFlow<Perfil?> = _perfil.asStateFlow()
 
+    private val _tareasCompletadasHoy = MutableStateFlow<List<Long>>(emptyList())
+    val tareasCompletadasHoy: StateFlow<List<Long>> = _tareasCompletadasHoy.asStateFlow()
+
     init {
         // Al iniciar esta pantalla, cargamos las tareas automáticamente
         cargarDatos()
@@ -44,6 +48,7 @@ class TareaViewModel(
                     // 2. Buscamos su perfil en la base de datos
                     val perfilUsuario = authRepository.obtenerPerfilUsuario(userId)
                     _perfil.value = perfilUsuario
+                    cargarTareasCompletadas(userId)
                 }
 
                 // 3. Cargamos las tareas
@@ -54,6 +59,16 @@ class TareaViewModel(
             }
         }
     }
+
+    private fun cargarTareasCompletadas(userId: String) {
+        viewModelScope.launch {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val fechaHoy = sdf.format(Date())
+            val completadas = repository.obtenerTareasCompletadasHoy(userId, fechaHoy)
+            _tareasCompletadasHoy.value = completadas
+        }
+    }
+
     fun cargarTareas() {
         viewModelScope.launch {
             try {
@@ -65,18 +80,22 @@ class TareaViewModel(
         }
     }
 
-    // Función temporal para probar que podemos guardar en Supabase
-    fun agregarTareaPrueba() {
+    fun crearNuevaTarea(titulo: String, descripcion: String) {
         viewModelScope.launch {
             try {
+                // Generamos la fecha de hoy automáticamente
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val fechaHoy = sdf.format(Date())
+
                 val nuevaTarea = Tarea(
-                    titulo = "Nueva Tarea Familia",
-                    descripcion = "Generada automáticamente desde la App a las ${System.currentTimeMillis()}",
-                    tipoFrecuencia = "una_vez",
-                    fechaInicio = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    titulo = titulo,
+                    descripcion = descripcion.ifBlank { null }, // Si la dejan vacía, guardamos null
+                    tipoFrecuencia = "una_vez", // Por defecto por ahora
+                    fechaInicio = fechaHoy
                 )
+
                 repository.crearTarea(nuevaTarea)
-                cargarTareas() // Recargamos la lista para ver la nueva tarea
+                cargarTareas() // Recargamos la lista para ver la tarea nueva
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -88,6 +107,36 @@ class TareaViewModel(
             try {
                 repository.eliminarTarea(id)
                 cargarTareas() // Actualizamos la lista
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun marcarTareaComoCompletada(tareaId: Long) {
+        // Necesitamos saber quién es el usuario actual
+        val userId = _perfil.value?.id ?: return
+
+        viewModelScope.launch {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val fechaHoy = sdf.format(Date())
+
+                val registro = RegistroCumplimiento(
+                    tareaId = tareaId,
+                    usuarioId = userId,
+                    fecha = fechaHoy,
+                    completada = true
+                )
+
+                // 1. Guardamos el recibo en la base de datos
+                repository.registrarCumplimiento(registro)
+
+                // 2. AÑADIMOS ESTO: Recargamos la lista de completadas para que desaparezca la tarea
+                cargarTareasCompletadas(userId)
+
+                android.util.Log.d("EXITO", "¡Tarea $tareaId completada por $userId!")
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -108,12 +157,12 @@ class TareaViewModel(
  */
 class TareaViewModelFactory(
     private val repository: TareaRepository,
-    private val authRepository: AuthRepository // AÑADIMOS ESTO AQUÍ
+    private val authRepository: AuthRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TareaViewModel::class.java)) {
-            return TareaViewModel(repository, authRepository) as T // Y AQUÍ
+            return TareaViewModel(repository, authRepository) as T
         }
         throw IllegalArgumentException("ViewModel desconocido")
     }

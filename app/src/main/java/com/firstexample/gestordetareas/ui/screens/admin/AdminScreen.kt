@@ -16,13 +16,27 @@ import androidx.compose.ui.unit.dp
 import com.firstexample.gestordetareas.domain.model.Tarea
 import com.firstexample.gestordetareas.ui.viewmodel.TareaViewModel
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.CheckCircle
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminScreen(viewModel: TareaViewModel, onLogout: () -> Unit) {
-    // Escuchamos la lista de tareas. Si cambia, la pantalla se redibuja sola.
     val tareas by viewModel.tareas.collectAsState()
-    val perfil by viewModel.perfil.collectAsState() // ESCUCHAMOS EL PERFIL
+    val perfil by viewModel.perfil.collectAsState()
+    val completadasHoy by viewModel.tareasCompletadasHoy.collectAsState()
+
     val isAdmin = perfil?.rol == "admin"
+    var mostrarDialogoCrear by remember { mutableStateOf(false) }
+
+    val tareasMostrar = if (isAdmin) {
+        tareas
+    } else {
+        tareas.filter { tarea -> !completadasHoy.contains(tarea.id) }
+    }
 
     Scaffold(
         topBar = {
@@ -45,42 +59,84 @@ fun AdminScreen(viewModel: TareaViewModel, onLogout: () -> Unit) {
             )
         },
         floatingActionButton = {
-            // Solo dibujamos el botón de agregar si es Admin
             if (isAdmin) {
-                FloatingActionButton(onClick = { viewModel.agregarTareaPrueba() }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Agregar Tarea Prueba")
+                FloatingActionButton(onClick = { mostrarDialogoCrear = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Agregar Tarea")
                 }
             }
         }
     ) { paddingValues ->
-        if (tareas.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No hay tareas. ¡Presiona el botón + para agregar una!")
+        if (tareasMostrar.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = if (isAdmin) "No hay tareas aún. ¡Crea una!" else "¡Felicidades! Terminaste tus tareas de hoy.")
             }
         } else {
-            // LazyColumn es el equivalente moderno del RecyclerView, ideal para listas
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(tareas) { tarea ->
+                // Cambiamos 'tareas' por 'tareasMostrar' también aquí
+                items(tareasMostrar) { tarea ->
                     TareaItem(
                         tarea = tarea,
-                        isAdmin = isAdmin, // Le pasamos el dato a la tarjeta
-                        onEliminar = { viewModel.eliminarTarea(tarea.id) }
+                        isAdmin = isAdmin,
+                        onEliminar = { viewModel.eliminarTarea(tarea.id) },
+                        onCompletar = { viewModel.marcarTareaComoCompletada(tarea.id) } // AÑADIMOS ESTO
                     )
                 }
             }
         }
     }
+
+    if (mostrarDialogoCrear) {
+        var tituloTarea by remember { mutableStateOf("") }
+        var descripcionTarea by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoCrear = false },
+            title = { Text("Nueva Tarea Familiar") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = tituloTarea,
+                        onValueChange = { tituloTarea = it },
+                        label = { Text("Título (ej. Lavar los trastes)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = descripcionTarea,
+                        onValueChange = { descripcionTarea = it },
+                        label = { Text("Descripción (Opcional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (tituloTarea.isNotBlank()) {
+                            viewModel.crearNuevaTarea(tituloTarea, descripcionTarea)
+                            mostrarDialogoCrear = false // Cerramos el cuadro
+                        }
+                    }
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoCrear = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
-fun TareaItem(tarea: Tarea, isAdmin: Boolean, onEliminar: () -> Unit) {
+fun TareaItem(tarea: Tarea, isAdmin: Boolean, onEliminar: () -> Unit, onCompletar: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -98,10 +154,14 @@ fun TareaItem(tarea: Tarea, isAdmin: Boolean, onEliminar: () -> Unit) {
                 Text(text = "Fecha: ${tarea.fechaInicio}", style = MaterialTheme.typography.labelSmall)
             }
 
-            // Solo dibujamos el basurero si es Admin
+            // Si es Admin, mostramos basurero. Si es Usuario, mostramos Check
             if (isAdmin) {
                 IconButton(onClick = onEliminar) {
                     Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                }
+            } else {
+                IconButton(onClick = onCompletar) {
+                    Icon(Icons.Outlined.CheckCircle, contentDescription = "Completar", tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
