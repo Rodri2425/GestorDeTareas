@@ -6,16 +6,13 @@ plugins {
 
 android {
     namespace = "com.firstexample.gestordetareas"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    // Lo simplificamos a 34 o 35 para evitar errores de sintaxis experimentales
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.firstexample.gestordetareas"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -24,15 +21,15 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = false
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
     }
@@ -54,6 +51,8 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+
     // Supabase & Ktor (Networking)
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.auth)
@@ -65,4 +64,5 @@ dependencies {
     // Arquitectura & Navegación
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation("androidx.compose.material:material-icons-extended")
 }
