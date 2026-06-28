@@ -87,4 +87,12 @@ class AuthRepositoryImpl(
             null
         }
     }
+    override suspend fun obtenerTodosLosPerfiles(): List<Perfil> {
+        return try {
+            supabaseClient.postgrest["perfiles"].select().decodeList<Perfil>()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 }

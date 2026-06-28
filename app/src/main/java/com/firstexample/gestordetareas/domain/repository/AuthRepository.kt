@@ -6,5 +6,8 @@ interface AuthRepository {
     suspend fun cerrarSesion()
     fun obtenerUsuarioActualId(): String?
 
+
     suspend fun obtenerPerfilUsuario(userId: String): com.firstexample.gestordetareas.domain.model.Perfil?
+
+    suspend fun obtenerTodosLosPerfiles(): List<com.firstexample.gestordetareas.domain.model.Perfil>
 }

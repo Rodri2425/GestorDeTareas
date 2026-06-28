@@ -35,11 +35,16 @@ class TareaRepositoryImpl(
             }
         }
     }
+    override suspend fun actualizarTarea(tarea: Tarea) {
+        supabaseClient.postgrest["tareas"].update(tarea) {
+            filter { eq("id", tarea.id) }
+        }
+    }
     override suspend fun registrarCumplimiento(registro: RegistroCumplimiento) {
         supabaseClient.postgrest["registro_cumplimiento"].insert(registro)
     }
 
-
+/* //Version de antes
     override suspend fun obtenerTareasCompletadasHoy(usuarioId: String, fecha: String): List<Long> {
         return try {
             val registros = supabaseClient.postgrest["registro_cumplimiento"]
@@ -52,6 +57,28 @@ class TareaRepositoryImpl(
 
             // Devolvemos solo la lista de los IDs de las tareas (ej. [1, 5, 8])
             registros.map { it.tareaId }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+ */
+
+    override suspend fun obtenerHistorialUsuario(usuarioId: String): List<RegistroCumplimiento> {
+        return try {
+            supabaseClient.postgrest["registro_cumplimiento"]
+                .select {
+                    filter { eq("usuario_id", usuarioId) }
+                }.decodeList<RegistroCumplimiento>()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    override suspend fun obtenerTodoElHistorial(): List<RegistroCumplimiento> {
+        return try {
+            supabaseClient.postgrest["registro_cumplimiento"].select().decodeList<RegistroCumplimiento>()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

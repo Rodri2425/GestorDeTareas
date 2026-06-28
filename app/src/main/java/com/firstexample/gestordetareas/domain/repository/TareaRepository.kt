@@ -16,7 +16,14 @@ interface TareaRepository {
 
     suspend fun eliminarTarea(id: Long)
 
+    suspend fun actualizarTarea(tarea: Tarea)
+
     suspend fun registrarCumplimiento(registro: com.firstexample.gestordetareas.domain.model.RegistroCumplimiento)
 
-    suspend fun obtenerTareasCompletadasHoy(usuarioId: String, fecha: String): List<Long>
+    //suspend fun obtenerTareasCompletadasHoy(usuarioId: String, fecha: String): List<Long>
+    suspend fun obtenerHistorialUsuario(usuarioId: String): List<com.firstexample.gestordetareas.domain.model.RegistroCumplimiento>
+
+    // NUEVA FUNCIÓN: Traer todo el historial de la casa
+
+    suspend fun obtenerTodoElHistorial(): List<com.firstexample.gestordetareas.domain.model.RegistroCumplimiento>
 }
